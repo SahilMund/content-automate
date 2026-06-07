@@ -1,0 +1,11 @@
+.env
+ig_session.json
+ig_cookies.json
+outputs/
+__pycache__/
+*.pyc
+.DS_Store
+
+.venv
+.ruff_cache
+node_modules

@@ -1,0 +1,13 @@
+[lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E402",  # load_dotenv() must run before project imports — intentional
+    "E501",  # long lines are in LLM prompt strings — not worth wrapping
+    "F405",  # Manim uses star imports by convention
+    "F403",  # Manim uses star imports by convention
+]
+exclude = [
+    ".venv",
+    "video/manim",      # LLM-generated Manim scenes
+    "video/remotion",   # TypeScript — not Python
+]
