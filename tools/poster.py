@@ -108,9 +108,15 @@ def post_to_linkedin(text: str, image_path: str | None = None) -> str:
 
 
 def post_to_instagram(caption: str, image_path: str) -> str:
-    """Post an image to Instagram via Playwright. Returns Instagram home URL."""
+    """Post a single image to Instagram via Playwright."""
     from tools.instagram_browser import post_to_instagram_browser
     return post_to_instagram_browser(caption, image_path)
+
+
+def post_carousel_to_instagram(caption: str, image_paths: list[str]) -> str:
+    """Post multiple slides as an Instagram carousel via Playwright."""
+    from tools.instagram_browser import post_carousel_to_instagram_browser
+    return post_carousel_to_instagram_browser(caption, image_paths)
 
 
 def post_reel_to_instagram(caption: str, video_path: str) -> str:

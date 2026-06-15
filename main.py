@@ -58,6 +58,11 @@ def main():
         "retry_count": 0,
         "video_path": None,
         "error": None,
+        "validation_feedback": "",
+        "validation_attempts": 0,
+        "carousel_paths": [],
+        "user_feedback": "",
+        "raw_content": "",
     }
 
     result = app.invoke(initial)
@@ -82,6 +87,9 @@ def main():
     img_dir = os.path.join(OUTPUTS_DIR, "images")
     if os.path.isdir(img_dir):
         print(f"  outputs/images/  ({len(result['images'])} images)")
+    carousel = result.get("carousel_paths", [])
+    if carousel:
+        print(f"  outputs/carousel/  ({len(carousel)} slides)")
 
     _print_divider("LINKEDIN POST")
     print(_extract_section(brief, "LinkedIn Post"))

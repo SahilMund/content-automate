@@ -1,181 +1,153 @@
-import os
 import urllib.parse
 from typing import Dict, List
 
-import feedparser
 import requests
 from ddgs import DDGS
-from pytrends.request import TrendReq
 
-from config import SUBSTACK_FEEDS
 from tools.progress import emit
 
-# Each scraper returns a list of these
 ScrapedItem = Dict[str, str]  # keys: title, url, snippet, source
 
-# Stop words that shouldn't count as meaningful keyword matches
-_STOP_WORDS = {
-    "a", "an", "the", "and", "or", "for", "of", "in", "on", "to",
-    "with", "by", "is", "it", "at", "be", "as", "this", "that",
-}
 
-
-def scrape_web_search(topic: str, max_results: int = 8) -> List[ScrapedItem]:
-    """DuckDuckGo web search — works for any topic, no API key required."""
+def _ddg_web(query: str, max_results: int = 6) -> List[ScrapedItem]:
     try:
-        items = []
         with DDGS() as ddgs:
-            results = ddgs.text(topic, max_results=max_results)
-            for r in results:
-                items.append({
+            return [
+                {
                     "title": r.get("title", ""),
                     "url": r.get("href", ""),
-                    "snippet": r.get("body", "")[:300],
-                    "source": "Web (DuckDuckGo)",
-                })
-        return items
+                    "snippet": r.get("body", "")[:500],
+                    "source": "Web",
+                }
+                for r in ddgs.text(query, max_results=max_results)
+            ]
     except Exception as e:
-        print(f"[scraper] DuckDuckGo search error: {e}")
+        print(f"[scraper] DDG web error ({query!r}): {e}")
         return []
 
 
-def scrape_google_trends(topic: str) -> List[ScrapedItem]:
+def _ddg_news(query: str, max_results: int = 6) -> List[ScrapedItem]:
     try:
-        pytrends = TrendReq(hl="en-US", tz=360)
-        pytrends.build_payload([topic], timeframe="now 7-d")
-        related = pytrends.related_queries()
-
-        items = []
-        data = related.get(topic, {})
-        top = data.get("top")
-        if top is not None and not top.empty:
-            for _, row in top.head(5).iterrows():
-                items.append({
-                    "title": row["query"],
-                    "url": f"https://trends.google.com/trends/explore?q={row['query'].replace(' ', '+')}",
-                    "snippet": f"Trending query related to '{topic}' — relative value: {row['value']}",
-                    "source": "Google Trends",
-                })
-        return items
+        with DDGS() as ddgs:
+            return [
+                {
+                    "title": r.get("title", ""),
+                    "url": r.get("url", ""),
+                    "snippet": r.get("body", "")[:500],
+                    "source": "News",
+                }
+                for r in ddgs.news(query, max_results=max_results)
+            ]
     except Exception as e:
-        print(f"[scraper] Google Trends error: {e}")
-        return []
-
-
-
-def scrape_arxiv(topic: str, max_results: int = 5) -> List[ScrapedItem]:
-    """Latest papers from Arxiv matching the topic."""
-    try:
-        query = urllib.parse.quote(topic)
-        url = (
-            f"http://export.arxiv.org/api/query"
-            f"?search_query=all:{query}"
-            f"&max_results={max_results}"
-            f"&sortBy=submittedDate&sortOrder=descending"
-        )
-        feed = feedparser.parse(url)
-        items = []
-        for entry in feed.entries[:max_results]:
-            authors = ", ".join(a.get("name", "") for a in entry.get("authors", [])[:3])
-            items.append({
-                "title": entry.get("title", "").replace("\n", " ").strip(),
-                "url": entry.get("link", ""),
-                "snippet": (
-                    f"Authors: {authors}. "
-                    + entry.get("summary", "")[:250].replace("\n", " ").strip()
-                ),
-                "source": "Arxiv",
-            })
-        return items
-    except Exception as e:
-        print(f"[scraper] Arxiv error: {e}")
+        print(f"[scraper] DDG news error ({query!r}): {e}")
         return []
 
 
 def scrape_github(topic: str, max_results: int = 5) -> List[ScrapedItem]:
-    """Top GitHub repos matching the topic, sorted by stars."""
     try:
         query = urllib.parse.quote(topic)
-        headers = {"Accept": "application/vnd.github.v3+json"}
-        if token := os.getenv("GITHUB_TOKEN"):
-            headers["Authorization"] = f"Bearer {token}"
         resp = requests.get(
             f"https://api.github.com/search/repositories"
             f"?q={query}&sort=stars&order=desc&per_page={max_results}",
-            headers=headers,
+            headers={"Accept": "application/vnd.github.v3+json"},
             timeout=10,
         )
         if not resp.ok:
-            print(f"[scraper] GitHub API {resp.status_code}")
             return []
-        items = []
-        for repo in resp.json().get("items", []):
-            stars = repo.get("stargazers_count", 0)
-            lang = repo.get("language") or "unknown"
-            desc = (repo.get("description") or "")[:200]
-            items.append({
+        return [
+            {
                 "title": repo["full_name"],
                 "url": repo["html_url"],
-                "snippet": f"{desc} | ⭐ {stars:,} stars | {lang}",
+                "snippet": f"{(repo.get('description') or '')[:200]} | ⭐ {repo.get('stargazers_count', 0):,} stars | {repo.get('language') or 'unknown'}",
                 "source": "GitHub",
-            })
-        return items
+            }
+            for repo in resp.json().get("items", [])
+        ]
     except Exception as e:
         print(f"[scraper] GitHub error: {e}")
         return []
 
 
-def scrape_substack(topic: str) -> List[ScrapedItem]:
-    # Only match articles where at least 2 meaningful keywords appear
-    all_kw = [kw.lower() for kw in topic.lower().replace("/", " ").split()]
-    keywords = [kw for kw in all_kw if kw not in _STOP_WORDS and len(kw) > 2]
-    min_matches = max(1, min(2, len(keywords)))
+def fetch_url_content(url: str) -> str:
+    """Fetch and extract readable text from a URL using stdlib only."""
+    import urllib.request
+    from html.parser import HTMLParser
 
-    items = []
-    for feed_url in SUBSTACK_FEEDS:
-        try:
-            feed = feedparser.parse(feed_url)
-            for entry in feed.entries[:15]:
-                text = (entry.get("title", "") + " " + entry.get("summary", "")).lower()
-                matched = sum(1 for kw in keywords if kw in text)
-                if matched >= min_matches:
-                    items.append({
-                        "title": entry.get("title", ""),
-                        "url": entry.get("link", ""),
-                        "snippet": entry.get("summary", "")[:300],
-                        "source": feed.feed.get("title", "Substack"),
-                    })
-        except Exception as e:
-            print(f"[scraper] Substack {feed_url} error: {e}")
+    class _Extractor(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self._skip = False
+            self._depth = 0
+            self.chunks: list[str] = []
 
-    return items[:6]
+        def handle_starttag(self, tag, attrs):
+            if tag in ("script", "style", "nav", "header", "footer", "aside"):
+                self._skip = True
+                self._depth += 1
+
+        def handle_endtag(self, tag):
+            if tag in ("script", "style", "nav", "header", "footer", "aside"):
+                self._depth -= 1
+                if self._depth <= 0:
+                    self._skip = False
+                    self._depth = 0
+
+        def handle_data(self, data):
+            if not self._skip:
+                stripped = data.strip()
+                if stripped:
+                    self.chunks.append(stripped)
+
+    try:
+        req = urllib.request.Request(
+            url, headers={"User-Agent": "Mozilla/5.0 (compatible; ContentBot/1.0)"}
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            raw_html = resp.read().decode("utf-8", errors="ignore")
+        parser = _Extractor()
+        parser.feed(raw_html)
+        text = "\n".join(parser.chunks)
+        # Collapse excessive blank lines
+        text = "\n".join(line for line in text.splitlines() if line.strip())
+        return text[:10000]
+    except Exception as e:
+        print(f"[scraper] fetch_url_content failed for {url}: {e}")
+        return ""
 
 
 def scrape_all(topic: str) -> List[ScrapedItem]:
-    emit(f"🌐 Searching the web for <code>{topic}</code>…")
-    print(f"[scraper] Web search     — '{topic}'")
-    web = scrape_web_search(topic)
+    # Anchor all queries to software/programming to avoid unrelated homonyms
+    dev_topic = f"{topic} programming software developer"
 
-    emit("🔍 Checking <b>Google Trends</b>…")
-    print(f"[scraper] Google Trends  — '{topic}'")
-    trends = scrape_google_trends(topic)
+    emit(f"🌐 Searching news for <code>{topic}</code>…")
+    print(f"[scraper] News search    — '{topic}'")
+    news = _ddg_news(f"{topic} software developer", max_results=6)
 
-    emit("📰 Checking <b>Substack RSS</b>…")
-    print(f"[scraper] Substack RSS   — '{topic}'")
-    substack = scrape_substack(topic)
-
-    emit("📄 Fetching <b>Arxiv papers</b>…")
-    print(f"[scraper] Arxiv          — '{topic}'")
-    arxiv = scrape_arxiv(topic)
-
-    emit("🐙 Searching <b>GitHub repos</b>…")
-    print(f"[scraper] GitHub         — '{topic}'")
-    github = scrape_github(topic)
-
-    total = web + trends + substack + arxiv + github
-    print(
-        f"[scraper] Done — {len(total)} items "
-        f"(web={len(web)}, trends={len(trends)}, substack={len(substack)}, "
-        f"arxiv={len(arxiv)}, github={len(github)})"
+    emit("🔍 Searching dev articles…")
+    print(f"[scraper] Dev sites      — '{topic}'")
+    dev = _ddg_web(
+        f"{topic} site:dev.to OR site:medium.com OR site:hackernoon.com OR site:infoq.com",
+        max_results=5,
     )
-    return total
+
+    emit("💡 Searching tips & insights…")
+    print(f"[scraper] Tips search    — '{topic}'")
+    tips = _ddg_web(f"{dev_topic} tips best practices 2025 2026", max_results=5)
+
+    emit("🐙 Searching GitHub repos…")
+    print(f"[scraper] GitHub         — '{topic}'")
+    github = scrape_github(topic, max_results=5)
+
+    total = news + dev + tips + github
+    seen_urls: set = set()
+    unique = []
+    for item in total:
+        if item["url"] not in seen_urls:
+            seen_urls.add(item["url"])
+            unique.append(item)
+
+    print(
+        f"[scraper] Done — {len(unique)} items "
+        f"(news={len(news)}, dev={len(dev)}, tips={len(tips)}, github={len(github)})"
+    )
+    return unique

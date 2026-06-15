@@ -8,108 +8,171 @@ from tools.llm import get_model
 from tools.progress import emit
 
 ANALYSIS_PROMPT = """\
-You are a sharp tech content creator writing for developers and AI practitioners on Instagram, \
-X, and LinkedIn. You write like the best Indian dev creators — direct, opinionated, specific. \
-No corporate fluff. No vague generalisations. Real insights, punchy delivery.
+You are a tech content writer for @the.undefined.parts — an Instagram and LinkedIn page \
+for software developers. Your job is to read source material and create compelling, \
+insight-driven social media content from it.
 
 Topic: {topic}
 Date: {date}
 
---- RAW RESEARCH ---
+--- SOURCE MATERIAL ---
 {raw_research}
---- END RESEARCH ---
+--- END MATERIAL ---
 
-Produce a content brief using EXACTLY this structure (keep all headings):
+STEP 1 — Identify content type and pick the angle:
+
+First, determine what kind of content this is:
+
+A) TUTORIAL/TECHNICAL: Content about a specific API, library, tool, coding technique, or concept \
+→ Find the single most interesting, underused, or surprising technical thing. Build the post around \
+teaching developers ONE concrete thing they can use immediately.
+
+B) NEWS/OPINION/ANALYSIS: Content about an industry event, product launch, policy decision, debate, \
+or broader tech story → Find the most interesting angle, implication, or take for a software developer \
+audience. What's the insight they'd want to share with their team?
+
+STEP 2 — Write the content using EXACTLY this structure (keep all headings):
 
 # Content Brief: {topic}
 **Date:** {date}
 
-## Hook
-(One line. Make it a scroll-stopper. Options: a surprising number, a bold contrarian claim, \
-a "most devs don't know this" opener, or a sharp question. No filler words.)
+## Chosen Angle
+(One sentence: what this post is specifically about and why it matters to developers)
 
 ## Instagram Caption
-Write in this EXACT style (use the example below as your template, replace content with {topic}):
 
-EXAMPLE (do not copy this — use it as style reference only):
----
-Most developers use Redis wrong. Here's what it actually does. 🧠
+For TUTORIAL content, use this structure:
+[PAIN POINT HOOK — an action line about the developer problem being solved]
+[CURIOSITY LINE — "Ever wondered how..." or "Did you know..."]
+Enter [CONCEPT] — [one-line analogy that makes it click]
+[CONTRAST: "Most devs use X, but [CONCEPT] is:"]
+✅ [Concrete benefit 1]
+✅ [Concrete benefit 2]
+✅ [Concrete benefit 3]
+Slide through to see how 🚀
+[ENGAGEMENT QUESTION] 👇
 
-Redis isn't a cache. It's a data structure server.
-And that distinction changes everything about how you architect systems.
+For NEWS/OPINION content, use this structure:
+[BOLD HOOK — the most surprising or important thing from this story, in one punchy line]
+[CONTEXT — 1-2 sentences: what happened and why developers should care]
+[KEY INSIGHT or IMPLICATION — what this actually means for the industry/developers]
+✅ [Key point 1 from the story]
+✅ [Key point 2 from the story]
+✅ [Key point 3 from the story]
+Slide through for the full breakdown 📊
+[ENGAGEMENT QUESTION — your take on the story] 👇
 
-Most teams only use it as a key-value store — but they're leaving 80% of it on the table.
-
-↳ Redis Streams handle 1M+ events/sec — beats Kafka for small-to-mid workloads
-↳ Sorted sets give you leaderboards, rate limiting, and geo-search in a single data structure
-↳ Pub/Sub + keyspace notifications = real-time features without WebSocket complexity
-
-Have you been using Redis beyond caching? Drop your use case below 👇
-
-.
-.
-.
-
-#Redis #BackendDevelopment #SystemDesign #SoftwareEngineering #WebDevelopment #DatabaseDesign #DevTips #buildinpublic #devlife #CodingLife #ProgrammingTips #TechTwitter #100DaysOfCode
----
-
-Now write the Instagram Caption for {topic} following this style:
-- Hook: first line must use a SPECIFIC stat or bold claim from the research (not generic)
-- Body: 3-4 short punchy lines, one idea each, conversational tone
-- Bullets: 3 ↳ points with real numbers or concrete details from the research
-- CTA: one question that invites comments
-- Dot spacers (.\\n.\\n.)
-- 10-15 hashtags on one line
+General caption rules:
+- Hook must be punchy — make people stop scrolling
+- No phrases: "rapidly growing", "game-changer", "leverage", "in today's world", "this is important"
+- Emojis: max 3, only where they add meaning
+- End with 10-15 hashtags on one line (mix specific + broad)
 
 ## LinkedIn Post
-Professional but human. Structure:
-Line 1: Hook (shows before "see more" — must make someone stop scrolling. Bold claim or stat.)
 
-[blank line]
+For TUTORIAL content — professional educator tone:
+Line 1 (hook, before "see more"): Bold claim or question about the pain point.
 
-1-2 sentence context — why this matters right now.
+2-3 sentences: What is it, why do devs not know/use it, what's the analogy.
 
-[blank line]
+Here's when you'd actually use this:
+→ [concrete use case 1]
+→ [concrete use case 2]
+→ [concrete use case 3]
 
-1-2 sentence insight — the non-obvious angle most people miss.
+Closing opinion or question that sparks discussion.
 
-[blank line]
+3-5 hashtags. Total: 800-1200 characters.
 
-Here's what this means for you:
-→ [actionable point 1]
-→ [actionable point 2]
-→ [actionable point 3]
+For NEWS/OPINION content — thought leadership tone:
+Line 1 (hook, before "see more"): The most interesting/controversial take on the story.
 
-[blank line]
+2-3 sentences: What happened, why it matters, your read on it.
 
-Closing line — a question that invites replies, or a strong opinion.
+The implications for developers and the industry:
+→ [implication 1]
+→ [implication 2]
+→ [implication 3]
 
-[blank line]
+Closing: your opinion or prediction, inviting discussion.
 
-3-5 hashtags.
+3-5 hashtags. Total: 800-1200 characters.
 
-Total: 700-1200 characters. No bullet-point lists of generic facts. No "I'm excited to share".
+No "I'm excited to share". No generic facts. Write with a distinct voice.
 
-## Key Insights
-- (insight 1 — specific, has a number or concrete detail)
-- (insight 2 — specific, has a number or concrete detail)
-- (insight 3 — specific, has a number or concrete detail)
-
-## CTA Options
-- (option 1 — drives comments)
-- (option 2 — drives saves/shares)
+## Code Snippet
+(For TUTORIAL content: include 5-15 lines of working code demonstrating the concept)
+(For NEWS/OPINION content: skip this section entirely — write "N/A")
 
 ## Hashtags
-**Instagram:** #tag1 #tag2 ... (10-15 tags)
-**LinkedIn:** #tag1 #tag2 #tag3 #tag4 #tag5
+**Instagram:** (10-15 tags)
+**LinkedIn:** (3-5 tags)
+
+## Slide Plan
+Choose 5-7 slides for the Instagram carousel. Each slide must be on its own SLIDE: block.
+Always start with cover and end with cta. Pick types that match the content.
+
+Available types:
+  cover     — hero title. Fields: CONCEPT (1-5 words), TAGLINE (6-12 words)
+  hook      — "LET ME TELL YOU / WHAT IS X?" — use for tutorials only. Field: CONCEPT
+  context   — facts summary for news/events. Fields: TITLE, ITEM ×3
+  bullets   — 3-4 key points. Fields: TITLE, ITEM ×3-4
+  code      — syntax-highlighted code — ONLY if real useful code exists. Fields: LANGUAGE, CODE: (then raw code on next lines)
+  cards     — numbered takeaways 01/02/03. Fields: TITLE, ITEM ×3
+  quote     — standout quote for news/opinion. Fields: QUOTE, ATTRIBUTION
+  cta       — call to action. Field: QUESTION (what you ask followers)
+
+Rules:
+  - Tutorial/Tech → use: cover, hook, bullets(definition), code(if useful), bullets(use cases), cards, cta
+  - News/Opinion  → use: cover, context, bullets(why it matters), bullets(developer impact), cards, cta  (NO hook, NO code)
+  - Concept/Career → use: cover, hook, bullets(problem), bullets(approach), cards, cta  (NO code)
+  - Skip code entirely if the topic is news, opinion, career advice, or has no real implementable code
+  - Each ITEM must be concise — max 15 words
+  - CONCEPT and TAGLINE must be plain text, no markdown
+
+Example (tutorial):
+SLIDE: cover
+CONCEPT: Broadcast Channel API
+TAGLINE: Sync browser tabs without WebSockets
+
+SLIDE: hook
+CONCEPT: Broadcast Channel API
+
+SLIDE: bullets
+TITLE: The Gist
+ITEM: Built into every modern browser, zero dependencies
+ITEM: Pub/sub pattern across same-origin tabs
+ITEM: No server, no polling, no WebSockets needed
+
+SLIDE: code
+LANGUAGE: javascript
+CODE:
+const bc = new BroadcastChannel('app');
+bc.postMessage({{ type: 'update', data: payload }});
+bc.onmessage = (e) => applyUpdate(e.data);
+
+SLIDE: bullets
+TITLE: When to Use It
+ITEM: Sync shopping cart across open tabs
+ITEM: Trigger logout in all tabs at once
+ITEM: Push live data between multiple app windows
+
+SLIDE: cards
+TITLE: Key Takeaways
+ITEM: Zero server overhead — pure browser API
+ITEM: Same-origin only — intentional security boundary
+ITEM: Use WebSockets for cross-device, not this
+
+SLIDE: cta
+QUESTION: How do you currently sync state across browser tabs?
 
 ---
 
-After the brief, score the content quality on these four dimensions (each 0-10):
-- Novelty: Is this information fresh and non-obvious?
-- Relevance: Does it match what {topic} practitioners care about right now?
-- Clarity: Are the posts easy to understand for a developer audience?
-- Engagement: Would this prompt likes, saves, comments, or replies?
+After the brief, score on these dimensions (each 0-10):
+- Specificity: Is this about ONE concrete angle, not a vague topic?
+- Insight quality: Does the content give developers a genuine new perspective?
+- Practicality: Would a dev immediately find this relevant to their work?
+- Engagement: Would they save this or share it with their team?
 
 End your response with EXACTLY this line (no other text after it):
 QUALITY_SCORE: <average of the four scores as a single decimal, e.g. 7.5>
@@ -139,16 +202,30 @@ def _save_output(content: str, topic: str) -> str:
 
 def analysis_node(state: AgentState) -> AgentState:
     topic = state["topic"]
-    print(f"\n[analysis] Analysing content for: {topic}")
-    emit("📝 <b>Analysis Agent</b> — building X, LinkedIn & Instagram posts…")
+    user_feedback    = state.get("user_feedback", "")
+    val_feedback     = state.get("validation_feedback", "")
+    feedback_parts   = [p for p in [user_feedback, val_feedback] if p]
+    combined_feedback = "\n\n".join(feedback_parts)
+    is_rewrite = bool(combined_feedback)
 
-    # Prefer the editing agent's structured brief; fall back to raw research
-    research_input = state.get("structured_brief") or state["raw_research"]
-    prompt = ANALYSIS_PROMPT.format(
+    label = "rewriting with feedback" if is_rewrite else "building posts"
+    print(f"\n[analysis] {label.capitalize()} for: {topic}")
+    emit("STEP:analysis")
+
+    research_input = state["raw_research"]
+    base_prompt = ANALYSIS_PROMPT.format(
         topic=topic,
         date=date.today().isoformat(),
         raw_research=research_input,
     )
+
+    if is_rewrite:
+        prompt = (
+            base_prompt
+            + f"\n\n--- FEEDBACK (address these in your rewrite) ---\n{combined_feedback}\n---"
+        )
+    else:
+        prompt = base_prompt
 
     print(f"[analysis] Calling LLM ({ANALYSIS_MODEL})...")
     llm = get_model(ANALYSIS_MODEL)
@@ -159,10 +236,9 @@ def analysis_node(state: AgentState) -> AgentState:
     content_brief = _strip_score_line(full_output)
 
     print(f"[analysis] Quality score: {quality_score}/10")
-    emit(f"📊 Quality score: <b>{quality_score}/10</b> — wrapping up…")
-
     path = _save_output(content_brief, topic)
     print(f"[analysis] Saved → {path}")
+    emit("DONE:analysis")
 
     return {
         **state,

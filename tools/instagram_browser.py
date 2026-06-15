@@ -140,6 +140,135 @@ def post_to_instagram_browser(caption: str, image_path: str) -> str:
     return "https://www.instagram.com/"
 
 
+def post_carousel_to_instagram_browser(caption: str, image_paths: list[str]) -> str:
+    """
+    Upload multiple PNGs as an Instagram carousel post via headless Playwright.
+    image_paths: ordered list of slide paths (up to 10 — Instagram's carousel limit).
+    """
+    from playwright.sync_api import TimeoutError as PwTimeout
+    from playwright.sync_api import sync_playwright
+
+    resolved = [str(Path(p).resolve()) for p in image_paths[:10]]
+    for p in resolved:
+        if not os.path.exists(p):
+            raise FileNotFoundError(f"Slide not found: {p}")
+
+    cookies_path = os.path.abspath(COOKIES_FILE)
+    if not os.path.exists(cookies_path):
+        raise RuntimeError(
+            "ig_cookies.json not found. Run: python auth_instagram_cookies.py"
+        )
+
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(
+            channel="chrome",
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled"],
+        )
+        context = browser.new_context(
+            storage_state=cookies_path,
+            viewport={"width": 1280, "height": 900},
+            user_agent=(
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/125.0.0.0 Safari/537.36"
+            ),
+        )
+        page = context.new_page()
+
+        page.goto("https://www.instagram.com/", wait_until="networkidle", timeout=30000)
+        time.sleep(2)
+
+        if "accounts/login" in page.url:
+            context.close(); browser.close()
+            raise RuntimeError(
+                "Instagram session expired. Re-run: python auth_instagram_cookies.py"
+            )
+
+        # ── Account verification (same as single-image flow) ────
+        import re as _re
+        hrefs = page.evaluate("""() => {
+            const links = document.querySelectorAll('a[href]');
+            return [...links].map(a => a.getAttribute('href'));
+        }""")
+        profile_hrefs = [h for h in hrefs if h and _re.match(r'^/[a-zA-Z0-9._]+/$', h)]
+        logged_in_as = ""
+        if EXPECTED_USER:
+            match = next(
+                (h.strip("/").lower() for h in profile_hrefs
+                 if h.strip("/").lower() == EXPECTED_USER), None
+            )
+            if match:
+                logged_in_as = match
+            else:
+                from collections import Counter
+                counts = Counter(h.strip("/").lower() for h in profile_hrefs)
+                logged_in_as = counts.most_common(1)[0][0] if counts else ""
+
+        if EXPECTED_USER and logged_in_as != EXPECTED_USER:
+            context.close(); browser.close()
+            raise RuntimeError(
+                f"Wrong Instagram account! Expected @{EXPECTED_USER}, "
+                f"got @{logged_in_as or 'unknown'}. "
+                "Re-run: python auth_instagram_cookies.py"
+            )
+        print(f"[instagram-carousel] Verified account: @{logged_in_as or EXPECTED_USER}")
+
+        not_now = page.get_by_role("button", name="Not Now")
+        if not_now.is_visible(timeout=3000):
+            not_now.click(); time.sleep(1)
+
+        # ── Open New Post ────────────────────────────────────────
+        create_btn = page.locator("a:has(svg[aria-label='New post'])").first
+        if not create_btn.is_visible(timeout=5000):
+            create_btn = page.locator("svg[aria-label='New post']").first
+        create_btn.click(timeout=10000, force=True)
+        time.sleep(1)
+        page.get_by_role("link", name="Post Post").click(timeout=5000)
+        time.sleep(1)
+
+        # ── Upload all slides at once (triggers carousel mode) ───
+        page.wait_for_selector("input[type='file']", state="attached", timeout=10000)
+        page.locator("input[type='file']").set_input_files(resolved)
+        time.sleep(3)
+
+        # Dismiss any confirmation popup that appears after multi-file upload
+        try:
+            ok = page.get_by_role("button", name="OK", exact=True).first
+            if ok.is_visible(timeout=2000):
+                ok.click()
+                time.sleep(1)
+        except Exception:
+            pass
+
+        # ── Crop screen → Next ───────────────────────────────────
+        page.get_by_role("button", name="Next").click(timeout=10000)
+        time.sleep(1)
+
+        # ── Filters screen → Next ────────────────────────────────
+        page.get_by_role("button", name="Next").click(timeout=10000)
+        time.sleep(1)
+
+        # ── Caption ──────────────────────────────────────────────
+        caption_box = page.locator("div[aria-label='Write a caption...']")
+        caption_box.wait_for(timeout=10000)
+        caption_box.click()
+        caption_box.fill(caption)
+        time.sleep(1)
+
+        # ── Share ────────────────────────────────────────────────
+        page.get_by_role("button", name="Share", exact=True).click(timeout=15000)
+        try:
+            page.wait_for_selector("text=Your post has been shared", timeout=30000)
+        except PwTimeout:
+            time.sleep(5)
+
+        context.close()
+        browser.close()
+
+    return "https://www.instagram.com/"
+
+
 def post_reel_to_instagram_browser(caption: str, video_path: str) -> str:
     """
     Upload an MP4 as an Instagram Reel via headless Playwright.

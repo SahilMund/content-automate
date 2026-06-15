@@ -41,7 +41,40 @@
       "Bash(.venv/bin/python -m flake8 --version)",
       "Bash(.venv/bin/python -m black --version)",
       "Bash(.venv/bin/ruff check *)",
-      "Bash(npx prettier *)"
+      "Bash(npx prettier *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(python -c \"import langgraph\")",
+      "Bash(python main.py)",
+      "Bash(pip install *)",
+      "Bash(python main.py --topic \"FastAPI\")",
+      "Bash(python main.py --topic \"Python\")",
+      "Bash(python main.py --topic \"JavaScript\")",
+      "Bash(pip show *)",
+      "Bash(python -m playwright install chromium)",
+      "Bash(python -c \"from playwright.sync_api import sync_playwright; print\\('ok'\\)\")",
+      "Bash(python -c ' *)",
+      "Bash(pdftoppm --version)",
+      "Bash(pdftoppm -r 150 \"/Users/sahilmund/Desktop/26-27/content-auto/outputs/Black Purple Simple Tech Carousel Instagram Post.pdf\" /tmp/carousel_slide)",
+      "Bash(python3 -)",
+      "Bash(python run_bot.py)",
+      "Bash(pkill -f \"run_bot.py\")",
+      "Bash(python -c \"from bot.bot import build_app; print\\('bot OK'\\)\")",
+      "Bash(python -c \"from tools.carousel_generator import generate_carousel, _parse_slide_plan; print\\('carousel OK'\\)\")",
+      "Bash(python -c \"from agents.analysis_agent import ANALYSIS_PROMPT; print\\(ANALYSIS_PROMPT[-200:]\\)\")",
+      "Bash(python -c \"from agents.research_agent import research_node; print\\('research OK'\\)\")",
+      "Bash(jobs)",
+      "Bash(jobs -l)",
+      "Bash(python -c \"from agents.validation_agent import validation_node; print\\('validation OK'\\)\")",
+      "Bash(python -c \"from agents.carousel_agent import carousel_node; print\\('carousel OK'\\)\")",
+      "Bash(awk '{print $2}')",
+      "Bash(pkill -f \"run_bot.py\" 2>/dev/null *)",
+      "Bash(echo \"tailing PID: $!\")",
+      "Bash(python -c \"from tools.llm import get_model; print\\('llm OK'\\)\")",
+      "Bash(python -c \"from bot.bot import build_app; print\\('OK'\\)\")"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   }
 }
